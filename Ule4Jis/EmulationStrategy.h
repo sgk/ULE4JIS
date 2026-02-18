@@ -2,8 +2,9 @@
 
 #include "Emulation.h"
 #include "KeyCondition.h"
+#include "PtrMap.h"
 
-typedef boost::ptr_map<KeyCondition, Emulation> EmulationMapType;
+typedef PtrMap<KeyCondition, Emulation> EmulationMapType;
 
 class EmulationStrategy {
 public:

@@ -1,2 +1,39 @@
 .DS_Store
+# Visual Studio
+/.vs/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
 
+# Build folders
+Debug/
+**/Debug/
+Release/
+**/Release/
+
+# Visual Studio build artifacts
+*.obj
+*.pch
+*.pdb
+*.idb
+*.ipdb
+*.iobj
+*.ilk
+*.tlog
+*.lastbuildstate
+*.recipe
+
+# VS project user files
+*.vcxproj.user
+*.vcxproj.user*
+
+# Tools
+vcpkg/
+ninja/
+
+# Publish artifacts
+publish/*.exe
+
+# Misc
+.DS_Store

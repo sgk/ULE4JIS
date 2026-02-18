@@ -5,6 +5,8 @@
 #include "Ule4Jis.h"
 #include "Ule4JisDlg.h"
 
+class CAboutDlg;
+
 #ifdef _DEBUG
 #define new DEBUG_NEW
 #endif
@@ -65,21 +67,19 @@ BOOL Ule4JisApp::InitInstance()
 		return FALSE;
 	}
 
-	Ule4JisDlg dlg;
-	m_pMainWnd = &dlg;
-	INT_PTR nResponse = dlg.DoModal();
-	if (nResponse == IDOK)
-	{
-		// TODO: ダイアログが <OK> で消された時のコードを
-		//  記述してください。
-	}
-	else if (nResponse == IDCANCEL)
-	{
-		// TODO: ダイアログが <キャンセル> で消された時のコードを
-		//  記述してください。
+	// Create the dialog modelessly so the application can run in the tray without
+	// showing the main window at startup.
+	Ule4JisDlg* pDlg = new Ule4JisDlg();
+	if (!pDlg->Create(Ule4JisDlg::IDD)) {
+		delete pDlg;
+		return FALSE;
 	}
 
-	// ダイアログは閉じられました。アプリケーションのメッセージ ポンプを開始しないで
-	//  アプリケーションを終了するために FALSE を返してください。
-	return FALSE;
+	// OnInitDialog will initialize the tray icon and hide the window.
+	pDlg->ShowWindow(SW_HIDE);
+
+	m_pMainWnd = pDlg;
+
+	// Keep the application running with a message loop.
+	return TRUE;
 }

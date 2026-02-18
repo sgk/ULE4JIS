@@ -5,6 +5,8 @@
 
 #include "KeyEmulator.h"
 
+class CAboutDlg;
+
 // Ule4JisDlg ダイアログ
 class Ule4JisDlg : public CDialog
 {
@@ -21,12 +23,17 @@ public:
 private:
 	// added
 	enum Strategy { USonJIS, JISonUS };
+	enum CapsLockMode { AltBackquote, DirectIME, Disabled };
 	NOTIFYICONDATA notifyIconData;
 	Strategy currentStrategy;
+	CapsLockMode capsLockMode;
+	CAboutDlg* pSplashDlg;
 
 	void showTaskTrayPopupMenu();
 	void changeTaskTrayIconToUS();
 	void changeTaskTrayIconToJIS();
+	void saveSettings();
+	void loadSettings();
 
 // 実装
 protected:
@@ -46,4 +53,6 @@ protected:
 public:
 	afx_msg void OnSize(UINT nType, int cx, int cy);
 	afx_msg void OnBnClickedHide();
+	afx_msg void OnTimer(UINT_PTR nIDEvent);
+	afx_msg void OnClose();
 };

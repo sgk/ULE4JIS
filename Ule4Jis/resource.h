@@ -13,6 +13,7 @@
 #define IDR_ICON_JIS                    130
 #define IDC_HIDE                        1000
 #define IDC_ABOUT_URL                   1001
+#define IDC_GITHUB_URL                  1002
 #define ID_DUMMY_AIUEO                  32771
 #define ID_DUMMY_KAKIKUKEKO             32772
 #define ID_DUMMY_STRATEGY               32773
@@ -27,14 +28,21 @@
 #define ID_DUMMY2                       32782
 #define ID_DUMMY_32783                  32783
 #define ID_TASKTRAY_RESTART             32784
+#define ID_TASKTRAY_ABOUT               32785
+#define ID_TASKTRAY_ENABLE              32786
+#define ID_TASKTRAY_USONJIS             32787
+#define ID_TASKTRAY_CAPSLOCK_IME        32788
+#define ID_TASKTRAY_CAPSLOCK_ALT_BACKQUOTE 32789
+#define ID_TASKTRAY_CAPSLOCK_DIRECT_IME 32790
+#define ID_TASKTRAY_CAPSLOCK_DISABLED   32791
 
 // Next default values for new objects
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        131
-#define _APS_NEXT_COMMAND_VALUE         32785
-#define _APS_NEXT_CONTROL_VALUE         1002
+#define _APS_NEXT_COMMAND_VALUE         32792
+#define _APS_NEXT_CONTROL_VALUE         1003
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

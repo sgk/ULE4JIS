@@ -63,4 +63,17 @@
 #endif
 
 
-#include <boost/ptr_container/ptr_map.hpp>
+#include <memory>
+
+// Provide compatibility alias for old code using std::auto_ptr when
+// compiling with a C++ standard that removed it (map to unique_ptr).
+#if __cplusplus >= 201703L
+namespace std {
+    template<typename T>
+    using auto_ptr = std::unique_ptr<T>;
+}
+#endif
+
+#include <memory>
+
+#include "PtrMap.h"

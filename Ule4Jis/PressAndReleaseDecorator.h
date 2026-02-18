@@ -3,6 +3,7 @@
 
 #include "Emulation.h"
 #include "KeyEmulator.h"
+#include <memory>
 
 /**
  * a key emulation class which always emulates press and release action

@@ -1,4 +1,4 @@
-// Ule4JisDlg.cpp : À‘•ƒtƒ@ƒCƒ‹
+ï»¿// Ule4JisDlg.cpp : å®Ÿè£…ãƒ•ã‚¡ã‚¤ãƒ«
 //
 
 #include "stdafx.h"
@@ -6,6 +6,7 @@
 #include "Ule4JisDlg.h"
 #include "KeyEmulator.h"
 #include "USonJISStrategy.h"
+#include "NopStrategy.h"
 #include "Constants.h"
 #include "afxwin.h"
 
@@ -14,35 +15,42 @@
 #endif
 
 
-// ƒAƒvƒŠƒP[ƒVƒ‡ƒ“‚Ìƒo[ƒWƒ‡ƒ“î•ñ‚Ég‚í‚ê‚é CAboutDlg ƒ_ƒCƒAƒƒO
+// ã‚¢ãƒ—ãƒªã‚±ãƒ¼ã‚·ãƒ§ãƒ³ã®ãƒãƒ¼ã‚¸ãƒ§ãƒ³æƒ…å ±ã«ä½¿ã‚ã‚Œã‚‹ CAboutDlg ãƒ€ã‚¤ã‚¢ãƒ­ã‚°
 
 class CAboutDlg : public CDialog
 {
 public:
 	CAboutDlg();
+	void SetModeless(bool modeless) { m_bModeless = modeless; }
 
-// ƒ_ƒCƒAƒƒO ƒf[ƒ^
+// ãƒ€ã‚¤ã‚¢ãƒ­ã‚° ãƒ‡ãƒ¼ã‚¿
 	enum { IDD = IDD_ABOUTBOX };
 
 	protected:
-	virtual void DoDataExchange(CDataExchange* pDX);    // DDX/DDV ƒTƒ|[ƒg
+	virtual void DoDataExchange(CDataExchange* pDX);    // DDX/DDV ã‚µãƒãƒ¼ãƒˆ
 
-// À‘•
+// å®Ÿè£…
 protected:
 	DECLARE_MESSAGE_MAP()
 public:
 	afx_msg HBRUSH OnCtlColor(CDC* pDC, CWnd* pWnd, UINT nCtlColor);
 private:
 	CStatic urlLabel;
+	CStatic githubUrlLabel;
 	HCURSOR handCursor;
+	bool m_bModeless;
 protected:
 	virtual BOOL OnCommand(WPARAM wParam, LPARAM lParam);
 public:
 	afx_msg BOOL OnSetCursor(CWnd* pWnd, UINT nHitTest, UINT message);
 	virtual BOOL OnInitDialog();
+	afx_msg void OnLButtonDown(UINT nFlags, CPoint point);
+	afx_msg void OnRButtonDown(UINT nFlags, CPoint point);
+	afx_msg void OnActivate(UINT nState, CWnd* pWndOther, BOOL bMinimized);
+	virtual BOOL PreTranslateMessage(MSG* pMsg);
 };
 
-CAboutDlg::CAboutDlg() : CDialog(CAboutDlg::IDD)
+CAboutDlg::CAboutDlg() : CDialog(CAboutDlg::IDD), m_bModeless(false)
 {
 }
 
@@ -50,21 +58,25 @@ void CAboutDlg::DoDataExchange(CDataExchange* pDX)
 {
 	CDialog::DoDataExchange(pDX);
 	DDX_Control(pDX, IDC_ABOUT_URL, urlLabel);
+	DDX_Control(pDX, IDC_GITHUB_URL, githubUrlLabel);
 }
 
 BEGIN_MESSAGE_MAP(CAboutDlg, CDialog)
 	ON_WM_CTLCOLOR()
 	ON_WM_SETCURSOR()
+	ON_WM_LBUTTONDOWN()
+	ON_WM_RBUTTONDOWN()
+	ON_WM_ACTIVATE()
 END_MESSAGE_MAP()
 
 
-// Ule4JisDlg ƒ_ƒCƒAƒƒO
+// Ule4JisDlg ãƒ€ã‚¤ã‚¢ãƒ­ã‚°
 
 
 
 
 Ule4JisDlg::Ule4JisDlg(CWnd* pParent /*=NULL*/)
-	: CDialog(Ule4JisDlg::IDD, pParent)
+	: CDialog(Ule4JisDlg::IDD, pParent), capsLockMode(AltBackquote), currentStrategy(USonJIS), pSplashDlg(NULL)
 {
 	m_hIcon = AfxGetApp()->LoadIcon(IDR_MAINFRAME);
 }
@@ -81,18 +93,20 @@ BEGIN_MESSAGE_MAP(Ule4JisDlg, CDialog)
 	//}}AFX_MSG_MAP
 	ON_WM_SIZE()
 	ON_BN_CLICKED(IDC_HIDE, &Ule4JisDlg::OnBnClickedHide)
+	ON_WM_TIMER()
+	ON_WM_CLOSE()
 END_MESSAGE_MAP()
 
 
-// Ule4JisDlg ƒƒbƒZ[ƒW ƒnƒ“ƒhƒ‰
+// Ule4JisDlg ãƒ¡ãƒƒã‚»ãƒ¼ã‚¸ ãƒãƒ³ãƒ‰ãƒ©
 
 BOOL Ule4JisDlg::OnInitDialog()
 {
 	CDialog::OnInitDialog();
 
-	// "ƒo[ƒWƒ‡ƒ“î•ñ..." ƒƒjƒ…[‚ğƒVƒXƒeƒ€ ƒƒjƒ…[‚É’Ç‰Á‚µ‚Ü‚·B
+	// "ãƒãƒ¼ã‚¸ãƒ§ãƒ³æƒ…å ±..." ãƒ¡ãƒ‹ãƒ¥ãƒ¼ã‚’ã‚·ã‚¹ãƒ†ãƒ  ãƒ¡ãƒ‹ãƒ¥ãƒ¼ã«è¿½åŠ ã—ã¾ã™ã€‚
 
-	// IDM_ABOUTBOX ‚ÍAƒVƒXƒeƒ€ ƒRƒ}ƒ“ƒh‚Ì”ÍˆÍ“à‚É‚È‚¯‚ê‚Î‚È‚è‚Ü‚¹‚ñB
+	// IDM_ABOUTBOX ã¯ã€ã‚·ã‚¹ãƒ†ãƒ  ã‚³ãƒãƒ³ãƒ‰ã®ç¯„å›²å†…ã«ãªã‘ã‚Œã°ãªã‚Šã¾ã›ã‚“ã€‚
 	ASSERT((IDM_ABOUTBOX & 0xFFF0) == IDM_ABOUTBOX);
 	ASSERT(IDM_ABOUTBOX < 0xF000);
 
@@ -108,12 +122,12 @@ BOOL Ule4JisDlg::OnInitDialog()
 		}
 	}
 
-	// ‚±‚Ìƒ_ƒCƒAƒƒO‚ÌƒAƒCƒRƒ“‚ğİ’è‚µ‚Ü‚·BƒAƒvƒŠƒP[ƒVƒ‡ƒ“‚ÌƒƒCƒ“ ƒEƒBƒ“ƒhƒE‚ªƒ_ƒCƒAƒƒO‚Å‚È‚¢ê‡A
-	//  Framework ‚ÍA‚±‚Ìİ’è‚ğ©“®“I‚És‚¢‚Ü‚·B
-	SetIcon(m_hIcon, TRUE);			// ‘å‚«‚¢ƒAƒCƒRƒ“‚Ìİ’è
-	SetIcon(m_hIcon, FALSE);		// ¬‚³‚¢ƒAƒCƒRƒ“‚Ìİ’è
+	// ã“ã®ãƒ€ã‚¤ã‚¢ãƒ­ã‚°ã®ã‚¢ã‚¤ã‚³ãƒ³ã‚’è¨­å®šã—ã¾ã™ã€‚ã‚¢ãƒ—ãƒªã‚±ãƒ¼ã‚·ãƒ§ãƒ³ã®ãƒ¡ã‚¤ãƒ³ ã‚¦ã‚£ãƒ³ãƒ‰ã‚¦ãŒãƒ€ã‚¤ã‚¢ãƒ­ã‚°ã§ãªã„å ´åˆã€
+	//  Framework ã¯ã€ã“ã®è¨­å®šã‚’è‡ªå‹•çš„ã«è¡Œã„ã¾ã™ã€‚
+	SetIcon(m_hIcon, TRUE);			// å¤§ãã„ã‚¢ã‚¤ã‚³ãƒ³ã®è¨­å®š
+	SetIcon(m_hIcon, FALSE);		// å°ã•ã„ã‚¢ã‚¤ã‚³ãƒ³ã®è¨­å®š
 
-	// TODO: ‰Šú‰»‚ğ‚±‚±‚É’Ç‰Á‚µ‚Ü‚·B
+	// TODO: åˆæœŸåŒ–ã‚’ã“ã“ã«è¿½åŠ ã—ã¾ã™ã€‚
 
 	// add icon into task tray
 	NOTIFYICONDATA &nid = this->notifyIconData;
@@ -137,12 +151,33 @@ BOOL Ule4JisDlg::OnInitDialog()
 	// initialize emulator
 	USonJISStrategy strategy;
 	this->keyEmulator.reset(new KeyEmulator(&strategy));
+
+	// load settings
+	loadSettings();
+
 	this->keyEmulator->start();
 
-	// save current strategy type
-	this->currentStrategy = USonJIS;
+	// ã‚¹ãƒ—ãƒ¬ãƒƒã‚·ãƒ¥ã‚¹ã‚¯ãƒªãƒ¼ãƒ³ã‚’éåŒæœŸã§è¡¨ç¤ºï¼ˆã‚¿ã‚¤ãƒˆãƒ«ãƒãƒ¼ãªã—ï¼‰
+	pSplashDlg = new CAboutDlg();
+	pSplashDlg->SetModeless(true);  // ãƒ¢ãƒ¼ãƒ‰ãƒ¬ã‚¹ãƒ•ãƒ©ã‚°ã‚’è¨­å®š
+	if (pSplashDlg->Create(IDD_ABOUTBOX, NULL)) {
+		// ã‚¿ã‚¤ãƒˆãƒ«ãƒãƒ¼ã¨ç¸ã‚’å‰Šé™¤
+		pSplashDlg->ModifyStyle(WS_CAPTION | WS_THICKFRAME | WS_SYSMENU, 0);
+		pSplashDlg->ModifyStyleEx(WS_EX_DLGMODALFRAME | WS_EX_CLIENTEDGE | WS_EX_STATICEDGE, 0);
+		pSplashDlg->SetWindowPos(&CWnd::wndTopMost, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_FRAMECHANGED);
+		pSplashDlg->CenterWindow(CWnd::GetDesktopWindow());
+		pSplashDlg->ShowWindow(SW_SHOW);
+		pSplashDlg->UpdateWindow();
+	}
 
-	return TRUE;  // ƒtƒH[ƒJƒX‚ğƒRƒ“ƒgƒ[ƒ‹‚Éİ’è‚µ‚½ê‡‚ğœ‚«ATRUE ‚ğ•Ô‚µ‚Ü‚·B
+	// 1ç§’å¾Œã«ã‚¹ãƒ—ãƒ©ãƒƒã‚·ãƒ¥ã‚’é–‰ã˜ã‚‹ã‚¿ã‚¤ãƒãƒ¼ã‚’è¨­å®š
+	SetTimer(1, 1000, NULL);
+
+	// start hidden: run as tray resident app from launch
+	ShowWindow(SW_HIDE);
+
+
+	return TRUE;  // ãƒ•ã‚©ãƒ¼ã‚«ã‚¹ã‚’ã‚³ãƒ³ãƒˆãƒ­ãƒ¼ãƒ«ã«è¨­å®šã—ãŸå ´åˆã‚’é™¤ãã€TRUE ã‚’è¿”ã—ã¾ã™ã€‚
 }
 
 void Ule4JisDlg::OnSysCommand(UINT nID, LPARAM lParam)
@@ -158,19 +193,19 @@ void Ule4JisDlg::OnSysCommand(UINT nID, LPARAM lParam)
 	}
 }
 
-// ƒ_ƒCƒAƒƒO‚ÉÅ¬‰»ƒ{ƒ^ƒ“‚ğ’Ç‰Á‚·‚éê‡AƒAƒCƒRƒ“‚ğ•`‰æ‚·‚é‚½‚ß‚Ì
-//  ‰º‚ÌƒR[ƒh‚ª•K—v‚Å‚·BƒhƒLƒ…ƒƒ“ƒg/ƒrƒ…[ ƒ‚ƒfƒ‹‚ğg‚¤ MFC ƒAƒvƒŠƒP[ƒVƒ‡ƒ“‚Ìê‡A
-//  ‚±‚ê‚ÍAFramework ‚É‚æ‚Á‚Ä©“®“I‚Éİ’è‚³‚ê‚Ü‚·B
+// ãƒ€ã‚¤ã‚¢ãƒ­ã‚°ã«æœ€å°åŒ–ãƒœã‚¿ãƒ³ã‚’è¿½åŠ ã™ã‚‹å ´åˆã€ã‚¢ã‚¤ã‚³ãƒ³ã‚’æç”»ã™ã‚‹ãŸã‚ã®
+//  ä¸‹ã®ã‚³ãƒ¼ãƒ‰ãŒå¿…è¦ã§ã™ã€‚ãƒ‰ã‚­ãƒ¥ãƒ¡ãƒ³ãƒˆ/ãƒ“ãƒ¥ãƒ¼ ãƒ¢ãƒ‡ãƒ«ã‚’ä½¿ã† MFC ã‚¢ãƒ—ãƒªã‚±ãƒ¼ã‚·ãƒ§ãƒ³ã®å ´åˆã€
+//  ã“ã‚Œã¯ã€Framework ã«ã‚ˆã£ã¦è‡ªå‹•çš„ã«è¨­å®šã•ã‚Œã¾ã™ã€‚
 
 void Ule4JisDlg::OnPaint()
 {
 	if (IsIconic())
 	{
-		CPaintDC dc(this); // •`‰æ‚ÌƒfƒoƒCƒX ƒRƒ“ƒeƒLƒXƒg
+		CPaintDC dc(this); // æç”»ã®ãƒ‡ãƒã‚¤ã‚¹ ã‚³ãƒ³ãƒ†ã‚­ã‚¹ãƒˆ
 
 		SendMessage(WM_ICONERASEBKGND, reinterpret_cast<WPARAM>(dc.GetSafeHdc()), 0);
 
-		// ƒNƒ‰ƒCƒAƒ“ƒg‚ÌlŠpŒ`—Ìˆæ“à‚Ì’†‰›
+		// ã‚¯ãƒ©ã‚¤ã‚¢ãƒ³ãƒˆã®å››è§’å½¢é ˜åŸŸå†…ã®ä¸­å¤®
 		int cxIcon = GetSystemMetrics(SM_CXICON);
 		int cyIcon = GetSystemMetrics(SM_CYICON);
 		CRect rect;
@@ -178,7 +213,7 @@ void Ule4JisDlg::OnPaint()
 		int x = (rect.Width() - cxIcon + 1) / 2;
 		int y = (rect.Height() - cyIcon + 1) / 2;
 
-		// ƒAƒCƒRƒ“‚Ì•`‰æ
+		// ã‚¢ã‚¤ã‚³ãƒ³ã®æç”»
 		dc.DrawIcon(x, y, m_hIcon);
 	}
 	else
@@ -187,8 +222,8 @@ void Ule4JisDlg::OnPaint()
 	}
 }
 
-// ƒ†[ƒU[‚ªÅ¬‰»‚µ‚½ƒEƒBƒ“ƒhƒE‚ğƒhƒ‰ƒbƒO‚µ‚Ä‚¢‚é‚Æ‚«‚É•\¦‚·‚éƒJ[ƒ\ƒ‹‚ğæ“¾‚·‚é‚½‚ß‚ÉA
-//  ƒVƒXƒeƒ€‚ª‚±‚ÌŠÖ”‚ğŒÄ‚Ño‚µ‚Ü‚·B
+// ãƒ¦ãƒ¼ã‚¶ãƒ¼ãŒæœ€å°åŒ–ã—ãŸã‚¦ã‚£ãƒ³ãƒ‰ã‚¦ã‚’ãƒ‰ãƒ©ãƒƒã‚°ã—ã¦ã„ã‚‹ã¨ãã«è¡¨ç¤ºã™ã‚‹ã‚«ãƒ¼ã‚½ãƒ«ã‚’å–å¾—ã™ã‚‹ãŸã‚ã«ã€
+//  ã‚·ã‚¹ãƒ†ãƒ ãŒã“ã®é–¢æ•°ã‚’å‘¼ã³å‡ºã—ã¾ã™ã€‚
 HCURSOR Ule4JisDlg::OnQueryDragIcon()
 {
 	return static_cast<HCURSOR>(m_hIcon);
@@ -197,6 +232,16 @@ HCURSOR Ule4JisDlg::OnQueryDragIcon()
 
 BOOL Ule4JisDlg::DestroyWindow()
 {
+	// save settings
+	saveSettings();
+
+	// delete splash dialog if still exists
+	if (pSplashDlg != NULL) {
+		pSplashDlg->DestroyWindow();
+		delete pSplashDlg;
+		pSplashDlg = NULL;
+	}
+
 	// delete icon from tasktray
 	::Shell_NotifyIcon(NIM_DELETE, &this->notifyIconData);
 
@@ -210,12 +255,9 @@ LRESULT Ule4JisDlg::WindowProc(UINT message, WPARAM wParam, LPARAM lParam)
 		// dispatch tasktray callback message
 		switch (lParam) {
 		case WM_RBUTTONUP:
-			// show popup menu
+		case WM_LBUTTONUP:
+			// show popup menu on left or right click
 			showTaskTrayPopupMenu();
-			break;
-		case WM_LBUTTONDBLCLK:
-			ShowWindow(SW_SHOW);
-			ShowWindow(SW_RESTORE);
 			break;
 		default:
 			break;
@@ -224,20 +266,59 @@ LRESULT Ule4JisDlg::WindowProc(UINT message, WPARAM wParam, LPARAM lParam)
 
 	case WM_COMMAND:
 		switch (LOWORD(wParam)) {
-		case ID_TASKTRAY_START:
-			this->keyEmulator->start();
-			changeTaskTrayIconToUS();
+		case ID_TASKTRAY_ABOUT:
+			{
+				CAboutDlg dlgAbout;
+				dlgAbout.DoModal();
+			}
 			break;
-		case ID_TASKTRAY_STOP:
-			this->keyEmulator->end();
-			changeTaskTrayIconToJIS();
+		case ID_TASKTRAY_ENABLE:
+			if (this->keyEmulator->isStarted()) {
+				this->keyEmulator->end();
+				changeTaskTrayIconToJIS();
+			} else {
+				this->keyEmulator->start();
+				changeTaskTrayIconToUS();
+			}
 			break;
-		case ID_TASKTRAY_RESTART:
-			this->keyEmulator->end();
-			this->keyEmulator->start();
+		case ID_TASKTRAY_USONJIS:
+			{
+				bool wasStarted = this->keyEmulator->isStarted();
+				if (wasStarted) {
+					this->keyEmulator->end();
+				}
+
+				if (this->currentStrategy == USonJIS) {
+					// Switch to NopStrategy (disable US on JIS)
+					this->currentStrategy = JISonUS;
+					NopStrategy nopStrategy;
+					this->keyEmulator->changeEmulationStrategy(&nopStrategy);
+				} else {
+					// Switch back to USonJIS
+					this->currentStrategy = USonJIS;
+					USonJISStrategy usStrategy;
+					this->keyEmulator->changeEmulationStrategy(&usStrategy);
+				}
+
+				if (wasStarted) {
+					this->keyEmulator->start();
+				}
+			}
+			break;
+		case ID_TASKTRAY_CAPSLOCK_ALT_BACKQUOTE:
+			capsLockMode = AltBackquote;
+			this->keyEmulator->setCapsLockMode(KeyEmulator::AltBackquote);
+			break;
+		case ID_TASKTRAY_CAPSLOCK_DIRECT_IME:
+			capsLockMode = DirectIME;
+			this->keyEmulator->setCapsLockMode(KeyEmulator::DirectIME);
+			break;
+		case ID_TASKTRAY_CAPSLOCK_DISABLED:
+			capsLockMode = Disabled;
+			this->keyEmulator->setCapsLockMode(KeyEmulator::Disabled);
 			break;
 		case ID_TASKTRAY_EXIT:
-			::PostQuitMessage(0);
+			PostMessage(WM_CLOSE, 0, 0);
 			break;
 		default:
 			break;
@@ -262,30 +343,68 @@ void Ule4JisDlg::showTaskTrayPopupMenu() {
 	GetCursorPos(&point);
 
 	CMenu menu;
-	menu.LoadMenu(IDR_MENU_TASKTRAY);
+	menu.CreatePopupMenu();
 
-	CMenu *subMenu = menu.GetSubMenu(0);
-	
-	// set menu state
+	// ã“ã®ã‚¢ãƒ—ãƒªã«ã¤ã„ã¦...
+	menu.AppendMenu(MF_STRING, ID_TASKTRAY_ABOUT, _T("ã“ã®ã‚¢ãƒ—ãƒªã«ã¤ã„ã¦..."));
+	menu.AppendMenu(MF_SEPARATOR);
+
+	// æœ‰åŠ¹
+	UINT enableFlags = MF_STRING;
 	if (this->keyEmulator->isStarted()) {
-		subMenu->EnableMenuItem(ID_TASKTRAY_START, MF_GRAYED);
-	} else {
-		subMenu->EnableMenuItem(ID_TASKTRAY_STOP, MF_GRAYED);
+		enableFlags |= MF_CHECKED;
 	}
+	menu.AppendMenu(enableFlags, ID_TASKTRAY_ENABLE, _T("æœ‰åŠ¹"));
 
-	//if (this->currentStrategy == USonJIS) {
-	//	subMenu->GetSubMenu(0)->EnableMenuItem(ID_STRATEGY_USONJIS, MF_GRAYED);
-	//} else {
-	//	subMenu->GetSubMenu(0)->EnableMenuItem(ID_STRATEGY_JISONUS, MF_GRAYED);
-	//}
-	subMenu->TrackPopupMenu(TPM_BOTTOMALIGN | TPM_RIGHTALIGN, point.x, point.y, this);
+	// æ—¥æœ¬èªã‚­ãƒ¼ãƒœãƒ¼ãƒ‰ã§USé…åˆ—
+	UINT usOnJisFlags = MF_STRING;
+	if (this->currentStrategy == USonJIS) {
+		usOnJisFlags |= MF_CHECKED;
+	}
+	menu.AppendMenu(usOnJisFlags, ID_TASKTRAY_USONJIS, _T("æ—¥æœ¬èªã‚­ãƒ¼ãƒœãƒ¼ãƒ‰ã§USé…åˆ—"));
+
+	menu.AppendMenu(MF_SEPARATOR);
+
+	// Caps Lockã®å‹•ä½œ (è¦‹å‡ºã—ã®ã¿ã€é¸æŠä¸å¯)
+	menu.AppendMenu(MF_STRING | MF_GRAYED, 0, _T("Caps Lockã®å‹•ä½œ"));
+
+	// Alt + ` (å¾“æ¥é€šã‚Šã®å‹•ä½œ)
+	UINT altBackquoteFlags = MF_STRING;
+	if (capsLockMode == AltBackquote) {
+		altBackquoteFlags |= MF_CHECKED;
+	}
+	menu.AppendMenu(altBackquoteFlags, ID_TASKTRAY_CAPSLOCK_ALT_BACKQUOTE, _T("Alt + ï½€"));
+
+	// IMEã‚’ç›´æ¥ã‚ªãƒ³ã‚ªãƒ• (æ–°ã—ã„å‹•ä½œ)
+	UINT directImeFlags = MF_STRING;
+	if (capsLockMode == DirectIME) {
+		directImeFlags |= MF_CHECKED;
+	}
+	menu.AppendMenu(directImeFlags, ID_TASKTRAY_CAPSLOCK_DIRECT_IME, _T("IMEã‚’ç›´æ¥ã‚ªãƒ³ã‚ªãƒ•"));
+
+	// ç„¡åŠ¹
+	UINT disabledFlags = MF_STRING;
+	if (capsLockMode == Disabled) {
+		disabledFlags |= MF_CHECKED;
+	}
+	menu.AppendMenu(disabledFlags, ID_TASKTRAY_CAPSLOCK_DISABLED, _T("ç„¡åŠ¹"));
+
+	menu.AppendMenu(MF_SEPARATOR);
+	menu.AppendMenu(MF_STRING, ID_TASKTRAY_EXIT, _T("çµ‚äº†"));
+
+	// ãƒ¡ãƒ‹ãƒ¥ãƒ¼ã‚’è¡¨ç¤ºã™ã‚‹å‰ã«ãƒ•ã‚©ã‚¢ã‚°ãƒ©ã‚¦ãƒ³ãƒ‰ã‚¦ã‚£ãƒ³ãƒ‰ã‚¦ã«è¨­å®š
+	// ã“ã‚Œã«ã‚ˆã‚Šã€ãƒ¡ãƒ‹ãƒ¥ãƒ¼ãŒãƒ•ã‚©ãƒ¼ã‚«ã‚¹ã‚’å¤±ã£ãŸã¨ãã«ç¢ºå®Ÿã«é–‰ã˜ã‚‹
+	SetForegroundWindow();
+	menu.TrackPopupMenu(TPM_BOTTOMALIGN | TPM_RIGHTALIGN, point.x, point.y, this);
+	// ãƒ¡ãƒ‹ãƒ¥ãƒ¼ãŒé–‰ã˜ã‚‰ã‚Œã‚‹ã“ã¨ã‚’ä¿è¨¼ã™ã‚‹ãŸã‚ã€ãƒ€ãƒŸãƒ¼ãƒ¡ãƒƒã‚»ãƒ¼ã‚¸ã‚’é€ä¿¡
+	PostMessage(WM_NULL, 0, 0);
 }
 
 void Ule4JisDlg::OnSize(UINT nType, int cx, int cy)
 {
 	CDialog::OnSize(nType, cx, cy);
 
-	// TODO: ‚±‚±‚ÉƒƒbƒZ[ƒW ƒnƒ“ƒhƒ‰ ƒR[ƒh‚ğ’Ç‰Á‚µ‚Ü‚·B
+	// Always keep dialog hidden - this app runs in system tray only
 	if (nType == SIZE_MINIMIZED) {
 		ShowWindow(SW_HIDE);
 	}
@@ -293,20 +412,83 @@ void Ule4JisDlg::OnSize(UINT nType, int cx, int cy)
 
 void Ule4JisDlg::OnBnClickedHide()
 {
-	// TODO: ‚±‚±‚ÉƒRƒ“ƒgƒ[ƒ‹’Ê’mƒnƒ“ƒhƒ‰ ƒR[ƒh‚ğ’Ç‰Á‚µ‚Ü‚·B
+	// TODO: ã“ã“ã«ã‚³ãƒ³ãƒˆãƒ­ãƒ¼ãƒ«é€šçŸ¥ãƒãƒ³ãƒ‰ãƒ© ã‚³ãƒ¼ãƒ‰ã‚’è¿½åŠ ã—ã¾ã™ã€‚
 	ShowWindow(SW_MINIMIZE);
+}
+
+void Ule4JisDlg::saveSettings()
+{
+	// Save settings to registry
+	HKEY hKey;
+	LONG result = RegCreateKeyEx(HKEY_CURRENT_USER, _T("Software\\ULE4JIS"), 0, NULL, 
+		REG_OPTION_NON_VOLATILE, KEY_WRITE, NULL, &hKey, NULL);
+
+	if (result == ERROR_SUCCESS) {
+		DWORD enabled = this->keyEmulator->isStarted() ? 1 : 0;
+		RegSetValueEx(hKey, _T("Enabled"), 0, REG_DWORD, (BYTE*)&enabled, sizeof(DWORD));
+
+		DWORD capsLock = static_cast<DWORD>(capsLockMode);
+		RegSetValueEx(hKey, _T("CapsLockMode"), 0, REG_DWORD, (BYTE*)&capsLock, sizeof(DWORD));
+
+		DWORD strategy = (this->currentStrategy == USonJIS) ? 1 : 0;
+		RegSetValueEx(hKey, _T("USonJIS"), 0, REG_DWORD, (BYTE*)&strategy, sizeof(DWORD));
+
+		RegCloseKey(hKey);
+	}
+}
+
+void Ule4JisDlg::loadSettings()
+{
+	// Load settings from registry
+	HKEY hKey;
+	LONG result = RegOpenKeyEx(HKEY_CURRENT_USER, _T("Software\\ULE4JIS"), 0, KEY_READ, &hKey);
+
+	if (result == ERROR_SUCCESS) {
+		DWORD enabled = 1;
+		DWORD size = sizeof(DWORD);
+		RegQueryValueEx(hKey, _T("Enabled"), NULL, NULL, (BYTE*)&enabled, &size);
+
+		DWORD capsLock = 0;
+		size = sizeof(DWORD);
+		RegQueryValueEx(hKey, _T("CapsLockMode"), NULL, NULL, (BYTE*)&capsLock, &size);
+
+		DWORD strategy = 1;
+		size = sizeof(DWORD);
+		RegQueryValueEx(hKey, _T("USonJIS"), NULL, NULL, (BYTE*)&strategy, &size);
+
+		capsLockMode = static_cast<CapsLockMode>(capsLock);
+		this->keyEmulator->setCapsLockMode(static_cast<KeyEmulator::CapsLockMode>(capsLock));
+
+		// Apply strategy
+		if (strategy != 0) {
+			this->currentStrategy = USonJIS;
+			USonJISStrategy usStrategy;
+			this->keyEmulator->changeEmulationStrategy(&usStrategy);
+		} else {
+			this->currentStrategy = JISonUS;
+			NopStrategy nopStrategy;
+			this->keyEmulator->changeEmulationStrategy(&nopStrategy);
+		}
+
+		if (!enabled) {
+			this->keyEmulator->end();
+			changeTaskTrayIconToJIS();
+		}
+
+		RegCloseKey(hKey);
+	}
 }
 
 HBRUSH CAboutDlg::OnCtlColor(CDC* pDC, CWnd* pWnd, UINT nCtlColor)
 {
 	HBRUSH hbr = CDialog::OnCtlColor(pDC, pWnd, nCtlColor);
 
-	// TODO:  ‚±‚±‚Å DC ‚Ì‘®«‚ğ•ÏX‚µ‚Ä‚­‚¾‚³‚¢B
+	// TODO:  ã“ã“ã§ DC ã®å±æ€§ã‚’å¤‰æ›´ã—ã¦ãã ã•ã„ã€‚
 
-	// TODO:  Šù’è’l‚ğg—p‚µ‚½‚­‚È‚¢ê‡‚Í•Ê‚Ìƒuƒ‰ƒV‚ğ•Ô‚µ‚Ü‚·B
+	// TODO:  æ—¢å®šå€¤ã‚’ä½¿ç”¨ã—ãŸããªã„å ´åˆã¯åˆ¥ã®ãƒ–ãƒ©ã‚·ã‚’è¿”ã—ã¾ã™ã€‚
 
 	// set color 'blue' to draw URL text.
-	if (pWnd == &this->urlLabel) {
+	if (pWnd == &this->urlLabel || pWnd == &this->githubUrlLabel) {
 		pDC->SetTextColor(RGB(0, 0, 0xFF));
 	}
 
@@ -323,6 +505,14 @@ BOOL CAboutDlg::OnCommand(WPARAM wParam, LPARAM lParam)
 			}
 		}
 	}
+	else if (LOWORD(wParam) == IDC_GITHUB_URL) {
+		if (HIWORD(wParam) == STN_CLICKED) {
+			HINSTANCE result = ::ShellExecute(NULL, _T("open"), _T("https://github.com/sgk/ULE4JIS"), NULL, NULL, SW_SHOWNORMAL);
+			if ((LONG)result <= 32) {
+				// error. but since this is not critical problem, i ignore this :P
+			}
+		}
+	}
 
 	return CDialog::OnCommand(wParam, lParam);
 }
@@ -330,7 +520,7 @@ BOOL CAboutDlg::OnCommand(WPARAM wParam, LPARAM lParam)
 BOOL CAboutDlg::OnSetCursor(CWnd* pWnd, UINT nHitTest, UINT message)
 {
 	// set hand cursor if a pointer is over url-label
-	if (pWnd == &this->urlLabel) {
+	if (pWnd == &this->urlLabel || pWnd == &this->githubUrlLabel) {
 		SetCursor(this->handCursor);
 		return TRUE;
 	}
@@ -342,11 +532,79 @@ BOOL CAboutDlg::OnInitDialog()
 {
 	CDialog::OnInitDialog();
 
-	// TODO:  ‚±‚±‚É‰Šú‰»‚ğ’Ç‰Á‚µ‚Ä‚­‚¾‚³‚¢
+	// ã‚¿ã‚¤ãƒˆãƒ«ãƒãƒ¼ã¨ç¸ã‚’å‰Šé™¤ã—ã¦ã‚·ãƒ³ãƒ—ãƒ«ãªå››è§’ã„ã‚¦ã‚£ãƒ³ãƒ‰ã‚¦ã«
+	ModifyStyle(WS_CAPTION | WS_THICKFRAME | WS_SYSMENU, 0);
+	ModifyStyleEx(WS_EX_DLGMODALFRAME | WS_EX_CLIENTEDGE | WS_EX_STATICEDGE, 0);
+
+	// ã‚¦ã‚£ãƒ³ãƒ‰ã‚¦ã‚’å†æç”»ã—ã¦ã‚¹ã‚¿ã‚¤ãƒ«å¤‰æ›´ã‚’åæ˜ 
+	SetWindowPos(NULL, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED);
 
 	// get hand cursor handle
+	// Suppress C4302: MAKEINTRESOURCE is standard Win32 pattern for cursor/icon loading
+	// Warning is false positive for Win32 (x86) target - no actual truncation occurs
+#pragma warning(push)
+#pragma warning(disable: 4302)
 	this->handCursor = ::LoadCursor(NULL, MAKEINTRESOURCE(IDC_HAND));
+#pragma warning(pop)
 
-	return TRUE;  // return TRUE unless you set the focus to a control
-	// —áŠO : OCX ƒvƒƒpƒeƒB ƒy[ƒW‚Í•K‚¸ FALSE ‚ğ•Ô‚µ‚Ü‚·B
+	return TRUE;
+}
+
+void CAboutDlg::OnLButtonDown(UINT nFlags, CPoint point)
+{
+	// ãƒ¢ãƒ¼ãƒ€ãƒ«æ™‚ã®ã¿å·¦ã‚¯ãƒªãƒƒã‚¯ã§ã‚¦ã‚£ãƒ³ãƒ‰ã‚¦ã‚’é–‰ã˜ã‚‹
+	if (!m_bModeless) {
+		EndDialog(IDOK);
+	}
+}
+
+void CAboutDlg::OnRButtonDown(UINT nFlags, CPoint point)
+{
+	// ãƒ¢ãƒ¼ãƒ€ãƒ«æ™‚ã®ã¿å³ã‚¯ãƒªãƒƒã‚¯ã§ã‚¦ã‚£ãƒ³ãƒ‰ã‚¦ã‚’é–‰ã˜ã‚‹
+	if (!m_bModeless) {
+		EndDialog(IDOK);
+	}
+}
+
+void CAboutDlg::OnActivate(UINT nState, CWnd* pWndOther, BOOL bMinimized)
+{
+	CDialog::OnActivate(nState, pWndOther, bMinimized);
+
+	// ãƒ¢ãƒ¼ãƒ€ãƒ«æ™‚ã®ã¿ãƒãƒƒã‚¯ã‚°ãƒ©ã‚¦ãƒ³ãƒ‰ã«ãªã£ãŸã‚‰é–‰ã˜ã‚‹
+	if (!m_bModeless && nState == WA_INACTIVE) {
+		EndDialog(IDOK);
+	}
+}
+
+BOOL CAboutDlg::PreTranslateMessage(MSG* pMsg)
+{
+	// ãƒ¢ãƒ¼ãƒ€ãƒ«æ™‚ã®ã¿ã‚­ãƒ¼ãƒœãƒ¼ãƒ‰å…¥åŠ›ã§ã‚¦ã‚£ãƒ³ãƒ‰ã‚¦ã‚’é–‰ã˜ã‚‹
+	if (!m_bModeless && (pMsg->message == WM_KEYDOWN || pMsg->message == WM_SYSKEYDOWN)) {
+		EndDialog(IDOK);
+		return TRUE;
+	}
+
+	return CDialog::PreTranslateMessage(pMsg);
+}
+
+void Ule4JisDlg::OnTimer(UINT_PTR nIDEvent)
+{
+	if (nIDEvent == 1) {
+		// ã‚¹ãƒ—ãƒ©ãƒƒã‚·ãƒ¥ã‚¹ã‚¯ãƒªãƒ¼ãƒ³ã‚’é–‰ã˜ã‚‹
+		KillTimer(1);
+		if (pSplashDlg != NULL) {
+			pSplashDlg->DestroyWindow();
+			delete pSplashDlg;
+			pSplashDlg = NULL;
+		}
+	}
+
+	CDialog::OnTimer(nIDEvent);
+}
+
+void Ule4JisDlg::OnClose()
+{
+	// DestroyWindow will call saveSettings(), then quit the app
+	DestroyWindow();
+	PostQuitMessage(0);
 }

@@ -1,4 +1,4 @@
-#include "StdAfx.h"
+﻿#include "StdAfx.h"
 #include "KeyHooker.h"
 
 HHOOK KeyHooker::hookHandle = NULL;
@@ -34,6 +34,12 @@ LRESULT CALLBACK KeyHooker::hookProc(int code, WPARAM wparam, LPARAM lparam) {
 	}
 
 	LPKBDLLHOOKSTRUCT khs = (LPKBDLLHOOKSTRUCT)lparam;
+
+	// 自分が注入したイベントは無視（無限ループ防止）
+	if (khs->flags & LLKHF_INJECTED) {
+		return ::CallNextHookEx(KeyHooker::hookHandle, code, wparam, lparam);
+	}
+
 	TRACE("key event recieved. scan: %x, vkey: %x, up: %s\n", khs->scanCode, khs->vkCode, (khs->flags & LLKHF_UP) ? "true" : "false");
 
 	KeyHookEventArgs args(KeyHooker::hookHandle, (LPKBDLLHOOKSTRUCT)lparam);
