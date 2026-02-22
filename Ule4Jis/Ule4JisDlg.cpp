@@ -366,14 +366,14 @@ void Ule4JisDlg::showTaskTrayPopupMenu() {
 	menu.AppendMenu(MF_SEPARATOR);
 
 	// Caps Lockの動作 (見出しのみ、選択不可)
-	menu.AppendMenu(MF_STRING | MF_GRAYED, 0, _T("Caps Lockの動作"));
+	menu.AppendMenu(MF_STRING | MF_DISABLED, 0, _T("Caps Lockの動作"));
 
 	// Alt + ` (従来通りの動作)
 	UINT altBackquoteFlags = MF_STRING;
 	if (capsLockMode == AltBackquote) {
 		altBackquoteFlags |= MF_CHECKED;
 	}
-	menu.AppendMenu(altBackquoteFlags, ID_TASKTRAY_CAPSLOCK_ALT_BACKQUOTE, _T("Alt + ｀"));
+	menu.AppendMenu(altBackquoteFlags, ID_TASKTRAY_CAPSLOCK_ALT_BACKQUOTE, _T("Alt + バッククオート"));
 
 	// IMEを直接オンオフ (新しい動作)
 	UINT directImeFlags = MF_STRING;
