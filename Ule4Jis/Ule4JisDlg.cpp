@@ -95,6 +95,8 @@ BEGIN_MESSAGE_MAP(Ule4JisDlg, CDialog)
 	ON_BN_CLICKED(IDC_HIDE, &Ule4JisDlg::OnBnClickedHide)
 	ON_WM_TIMER()
 	ON_WM_CLOSE()
+	ON_WM_DRAWITEM()
+	ON_WM_MEASUREITEM()
 END_MESSAGE_MAP()
 
 
@@ -366,7 +368,7 @@ void Ule4JisDlg::showTaskTrayPopupMenu() {
 	menu.AppendMenu(MF_SEPARATOR);
 
 	// Caps Lockの動作 (見出しのみ、選択不可)
-	menu.AppendMenu(MF_STRING | MF_DISABLED, 0, _T("Caps Lockの動作"));
+	menu.AppendMenu(MF_OWNERDRAW | MF_DISABLED, ID_TASKTRAY_CAPSLOCK_HEADER, _T("Caps Lockの動作"));
 
 	// Alt + ` (従来通りの動作)
 	UINT altBackquoteFlags = MF_STRING;
@@ -607,4 +609,48 @@ void Ule4JisDlg::OnClose()
 	// DestroyWindow will call saveSettings(), then quit the app
 	DestroyWindow();
 	PostQuitMessage(0);
+}
+
+void Ule4JisDlg::OnDrawItem(int nIDCtl, LPDRAWITEMSTRUCT lpDrawItemStruct)
+{
+	if (lpDrawItemStruct->CtlType == ODT_MENU && lpDrawItemStruct->itemID == ID_TASKTRAY_CAPSLOCK_HEADER) {
+		CDC dc;
+		dc.Attach(lpDrawItemStruct->hDC);
+		CRect rect(lpDrawItemStruct->rcItem);
+		::FillRect(dc.GetSafeHdc(), rect, ::GetSysColorBrush(COLOR_MENU));
+
+		int oldBkMode = dc.SetBkMode(TRANSPARENT);
+		COLORREF oldTextColor = dc.SetTextColor(::GetSysColor(COLOR_GRAYTEXT));
+		CFont* pOldFont = dc.SelectObject(GetFont());
+
+		CString text(reinterpret_cast<LPCTSTR>(lpDrawItemStruct->itemData));
+		if (text.IsEmpty()) {
+			text = _T("Caps Lockの動作");
+		}
+		rect.left += 8;
+		dc.DrawText(text, rect, DT_SINGLELINE | DT_VCENTER | DT_LEFT);
+
+		dc.SelectObject(pOldFont);
+		dc.SetTextColor(oldTextColor);
+		dc.SetBkMode(oldBkMode);
+		dc.Detach();
+		return;
+	}
+
+	CDialog::OnDrawItem(nIDCtl, lpDrawItemStruct);
+}
+
+void Ule4JisDlg::OnMeasureItem(int nIDCtl, LPMEASUREITEMSTRUCT lpMeasureItemStruct)
+{
+	if (lpMeasureItemStruct->CtlType == ODT_MENU && lpMeasureItemStruct->itemID == ID_TASKTRAY_CAPSLOCK_HEADER) {
+		CClientDC dc(this);
+		CFont* pOldFont = dc.SelectObject(GetFont());
+		CSize size = dc.GetTextExtent(_T("Caps Lockの動作"));
+		lpMeasureItemStruct->itemWidth = size.cx;
+		lpMeasureItemStruct->itemHeight = size.cy + 4;
+		dc.SelectObject(pOldFont);
+		return;
+	}
+
+	CDialog::OnMeasureItem(nIDCtl, lpMeasureItemStruct);
 }
