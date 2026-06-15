@@ -25,7 +25,7 @@ void KeyEmulator::start() {
 	ASSERT(this->hooker.get() == NULL);
 	
 	if (capsLockMode != Disabled) {
-		forceCapsLockOff();
+		turnCapsLockOff();
 	}
 	
 	this->hooker.reset(new KeyHooker(this));
@@ -55,8 +55,10 @@ bool KeyEmulator::onKeyHookEvent(const KeyHookEventArgs &args) {
 			} else {
 				toggleImeOpenStatusForForegroundWindow();
 			}
+			clearCapsLockState();
+		} else {
+			turnCapsLockOff();
 		}
-		forceCapsLockOff();
 		return true;
 	}
 
@@ -116,20 +118,24 @@ bool KeyEmulator::isExtendedKey(BYTE vkey) const {
 void KeyEmulator::setCapsLockMode(CapsLockMode mode) {
 	capsLockMode = mode;
 	if (capsLockMode != Disabled) {
-		forceCapsLockOff();
+		turnCapsLockOff();
 	}
 }
 
-void KeyEmulator::forceCapsLockOff() const {
-	if (::GetKeyState(VK_CAPITAL) & 0x0001) {
-		::keybd_event(VK_CAPITAL, 0x45, 0, (ULONG_PTR)this);
-		::keybd_event(VK_CAPITAL, 0x45, KEYEVENTF_KEYUP, (ULONG_PTR)this);
-	}
-
+void KeyEmulator::clearCapsLockState() const {
 	BYTE keyState[256];
 	GetKeyboardState(keyState);
 	keyState[VK_CAPITAL] &= 0xfe;
 	SetKeyboardState(keyState);
+}
+
+void KeyEmulator::turnCapsLockOff() const {
+	if (::GetKeyState(VK_CAPITAL) & 0x0001) {
+		::keybd_event(VK_CAPITAL, 0x45, 0, (ULONG_PTR)this);
+		::keybd_event(VK_CAPITAL, 0x45, KEYEVENTF_KEYUP, (ULONG_PTR)this);
+	} else {
+		clearCapsLockState();
+	}
 }
 
 bool KeyEmulator::toggleImeOpenStatusForForegroundWindow() {
