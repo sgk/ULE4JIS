@@ -24,21 +24,8 @@ void KeyEmulator::changeEmulationStrategy(EmulationStrategy *strategy) {
 void KeyEmulator::start() {
 	ASSERT(this->hooker.get() == NULL);
 	
-	// Turn off Caps Lock if it's currently on (only when Caps Lock mode is not Disabled)
-	if (capsLockMode != Disabled && (::GetKeyState(VK_CAPITAL) & 0x0001)) {
-		// Caps Lock is ON, turn it OFF by simulating a key press
-		BYTE keyState[256];
-		GetKeyboardState(keyState);
-		keyState[VK_CAPITAL] = 0;
-		SetKeyboardState(keyState);
-		
-		::keybd_event(VK_CAPITAL, 0x45, 0, (ULONG_PTR)this);
-		::keybd_event(VK_CAPITAL, 0x45, KEYEVENTF_KEYUP, (ULONG_PTR)this);
-		
-		// Ensure final state is OFF
-		GetKeyboardState(keyState);
-		keyState[VK_CAPITAL] = 0;
-		SetKeyboardState(keyState);
+	if (capsLockMode != Disabled) {
+		forceCapsLockOff();
 	}
 	
 	this->hooker.reset(new KeyHooker(this));
@@ -63,34 +50,13 @@ bool KeyEmulator::onKeyHookEvent(const KeyHookEventArgs &args) {
 	// On US keyboards, it should be VK_CAPITAL (0x14)
 	if ((vkey == VK_CAPITAL || vkey == 0xF0) && capsLockMode != Disabled) {
 		if (!args.isUp()) {
-			// Caps Lock pressed - always turn off Caps Lock LED
 			if (capsLockMode == DirectIME) {
 				toggleImeDirectly();
 			} else {
 				toggleImeOpenStatusForForegroundWindow();
 			}
-			
-			// Force Caps Lock OFF by ensuring the LED state matches keyboard state
-			// Get current keyboard state
-			BYTE keyState[256];
-			GetKeyboardState(keyState);
-			
-			// Check if Caps Lock LED is on
-			if (GetKeyState(VK_CAPITAL) & 0x0001) {
-				// Caps Lock LED is ON, turn it OFF
-				keyState[VK_CAPITAL] = 0;
-				SetKeyboardState(keyState);
-				
-				// Send Caps Lock key event to toggle it off
-				::keybd_event(VK_CAPITAL, 0x45, 0, (ULONG_PTR)this);
-				::keybd_event(VK_CAPITAL, 0x45, KEYEVENTF_KEYUP, (ULONG_PTR)this);
-				
-				// Ensure state is consistent
-				GetKeyboardState(keyState);
-				keyState[VK_CAPITAL] = 0;
-				SetKeyboardState(keyState);
-			}
 		}
+		forceCapsLockOff();
 		return true;
 	}
 
@@ -145,6 +111,25 @@ bool KeyEmulator::isExtendedKey(BYTE vkey) const {
 		default:
 			return false;
 	}
+}
+
+void KeyEmulator::setCapsLockMode(CapsLockMode mode) {
+	capsLockMode = mode;
+	if (capsLockMode != Disabled) {
+		forceCapsLockOff();
+	}
+}
+
+void KeyEmulator::forceCapsLockOff() const {
+	if (::GetKeyState(VK_CAPITAL) & 0x0001) {
+		::keybd_event(VK_CAPITAL, 0x45, 0, (ULONG_PTR)this);
+		::keybd_event(VK_CAPITAL, 0x45, KEYEVENTF_KEYUP, (ULONG_PTR)this);
+	}
+
+	BYTE keyState[256];
+	GetKeyboardState(keyState);
+	keyState[VK_CAPITAL] &= 0xfe;
+	SetKeyboardState(keyState);
 }
 
 bool KeyEmulator::toggleImeOpenStatusForForegroundWindow() {

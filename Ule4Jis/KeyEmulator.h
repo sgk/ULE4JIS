@@ -19,6 +19,7 @@ private:
 	bool isExtendedKey(BYTE vkey) const;
 	bool toggleImeOpenStatusForForegroundWindow();
 	bool toggleImeDirectly();
+	void forceCapsLockOff() const;
 	int getImeOpenStatus(HWND hwnd);
 	bool setImeOpenStatus(HWND hwnd, bool open);
 
@@ -34,6 +35,6 @@ public:
 
 	void emulateKey(BYTE vkey, bool up = false) const;
 
-	void setCapsLockMode(CapsLockMode mode) { capsLockMode = mode; }
+	void setCapsLockMode(CapsLockMode mode);
 	CapsLockMode getCapsLockMode() const { return capsLockMode; }
 };
