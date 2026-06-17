@@ -21,6 +21,7 @@ private:
 	bool toggleImeDirectly();
 	void clearCapsLockState() const;
 	void turnCapsLockOff() const;
+	void scheduleCapsLockOff() const;
 	int getImeOpenStatus(HWND hwnd);
 	bool setImeOpenStatus(HWND hwnd, bool open);
 

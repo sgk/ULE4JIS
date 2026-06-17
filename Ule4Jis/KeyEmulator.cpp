@@ -9,6 +9,35 @@
 #define IMC_GETOPENSTATUS 0x0005
 #define IMC_SETOPENSTATUS 0x0006
 
+static volatile LONG capsLockOffWorkerRunning = 0;
+
+static void ClearCapsLockStateForCurrentThread() {
+	BYTE keyState[256];
+	GetKeyboardState(keyState);
+	keyState[VK_CAPITAL] &= 0xfe;
+	SetKeyboardState(keyState);
+}
+
+static void TurnCapsLockOffOnce() {
+	if (::GetKeyState(VK_CAPITAL) & 0x0001) {
+		::keybd_event(VK_CAPITAL, 0x45, 0, 0);
+		::keybd_event(VK_CAPITAL, 0x45, KEYEVENTF_KEYUP, 0);
+	}
+	ClearCapsLockStateForCurrentThread();
+}
+
+static DWORD WINAPI CapsLockOffWorkerProc(LPVOID) {
+	static const DWORD delays[] = { 0, 10, 30, 60, 120, 250, 500, 1000 };
+	for (int i = 0; i < sizeof(delays) / sizeof(delays[0]); ++i) {
+		if (delays[i] != 0) {
+			::Sleep(delays[i]);
+		}
+		TurnCapsLockOffOnce();
+	}
+	::InterlockedExchange(&capsLockOffWorkerRunning, 0);
+	return 0;
+}
+
 KeyEmulator::KeyEmulator(EmulationStrategy *strategy) : capsLockMode(AltBackquote) {
 	// initialize emulation map
 	changeEmulationStrategy(strategy);
@@ -25,7 +54,7 @@ void KeyEmulator::start() {
 	ASSERT(this->hooker.get() == NULL);
 	
 	if (capsLockMode != Disabled) {
-		turnCapsLockOff();
+		scheduleCapsLockOff();
 	}
 	
 	this->hooker.reset(new KeyHooker(this));
@@ -55,9 +84,9 @@ bool KeyEmulator::onKeyHookEvent(const KeyHookEventArgs &args) {
 			} else {
 				toggleImeOpenStatusForForegroundWindow();
 			}
-			clearCapsLockState();
+			scheduleCapsLockOff();
 		} else {
-			turnCapsLockOff();
+			scheduleCapsLockOff();
 		}
 		return true;
 	}
@@ -118,7 +147,7 @@ bool KeyEmulator::isExtendedKey(BYTE vkey) const {
 void KeyEmulator::setCapsLockMode(CapsLockMode mode) {
 	capsLockMode = mode;
 	if (capsLockMode != Disabled) {
-		turnCapsLockOff();
+		scheduleCapsLockOff();
 	}
 }
 
@@ -135,6 +164,20 @@ void KeyEmulator::turnCapsLockOff() const {
 		::keybd_event(VK_CAPITAL, 0x45, KEYEVENTF_KEYUP, (ULONG_PTR)this);
 	} else {
 		clearCapsLockState();
+	}
+}
+
+void KeyEmulator::scheduleCapsLockOff() const {
+	if (::InterlockedCompareExchange(&capsLockOffWorkerRunning, 1, 0) != 0) {
+		return;
+	}
+
+	HANDLE thread = ::CreateThread(NULL, 0, CapsLockOffWorkerProc, NULL, 0, NULL);
+	if (thread != NULL) {
+		::CloseHandle(thread);
+	} else {
+		::InterlockedExchange(&capsLockOffWorkerRunning, 0);
+		turnCapsLockOff();
 	}
 }
 
